@@ -269,3 +269,112 @@ export const someFunction = query({
   },
 });
 ```
+
+# Known Issues & Mitigations
+
+
+## Stripe createCustomerOnSignUp CONVEX Uncaught ReferenceError Fix
+
+Example of error:
+```ts
+11/15/2025, 2:49:55 PM [CONVEX H(GET /api/auth/callback/github)] [LOG] '2025-11-15T20:49:55.811Z INFO [Better Auth]: [Convex Adapter]' '#5 \x1B[40m\x1B[33m[4/4]\x1B[0m' '\x1B[1mcreate\x1B[0m \x1B[2m(Parsed Result)\x1B[0m:' {
+  model: 'user',
+  data: {
+    name: 'Alexander K',
+    email: 'xxxxx@gmail.com',
+    emailVerified: true,
+    image: 'https://avatars.githubusercontent.com/u/xxxxxx',
+    createdAt: 1763239795775,
+    updatedAt: 1763239795775,
+    userId: undefined,
+    stripeCustomerId: undefined,
+    id: '12345234234'
+  }
+}
+11/15/2025, 2:49:55 PM [CONVEX H(GET /api/auth/callback/github)] Uncaught ReferenceError: Buffer is not defined 
+```
+
+This usually occurs when passing 
+```ts
+createCustomerOnSignUp: true
+```
+in the @betterauth/stripe plugin initialization in convex/auth.ts
+```ts
+plugins: [
+            // The Convex plugin is required for Convex compatibility
+
+            convex(),
+            stripe({
+                createCustomerOnSignUp: true,
+                stripeClient: stripeClient,
+                stripeWebhookSecret: "xxxxxx"
+            }),
+
+        ],
+```
+
+### The fix:
+
+<div className="fd-steps">
+
+  <div className="fd-step">
+
+    ### Install Buffer Package
+
+    Export adapter functions for the component.
+
+    ```ts title="cli"
+    npm i buffer
+    ```
+
+  </div>
+
+  <div className="fd-step">
+
+    ### Add Code
+    Add the following lines to fix the issue
+
+    ```ts title="convex/auth.ts"
+
+
+    import { Buffer } from 'buffer'; // [!code ++]
+
+    //all other import statements in auth.ts
+
+
+    globalThis.Buffer = Buffer; // [!code ++]
+
+    const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    //stripe client code args
+    })
+
+
+    const siteUrl = process.env.SITE_URL!;
+
+    export const authComponent = createClient<DataModel, typeof authSchema>(
+        //authComponent code args
+    );
+    ```
+
+  </div>
+
+  <div className="fd-step">
+    globalThis.Buffer = globalThis.Buffer || { // [!code ++ 
+    } as any; // [!code ++
+
+
+    export const createAuth = (
+        ctx: GenericCtx<DataModel>,
+        { optionsOnly } = { optionsOnly: false },
+    ) => {
+        return betterAuth({  
+        ///your better auth code
+        });
+    };
+  </div>
+</div>
+
+
+
+
+
